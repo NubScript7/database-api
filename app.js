@@ -1,8 +1,8 @@
-//require("dotenv").config()
+require("dotenv").config()
 const express = require('express');
 const admin = require("firebase-admin");
 const app = express();
-const PORT = process.env.PORT || 3000
+const PORT = process.env.PORT || 3001
 
 
 app.use(express.json());
@@ -51,12 +51,13 @@ app.get("/test",(req,res) => {
 })
 
 app.post("/get", (req,res) => {
+	console.log(req.body)
 	const ref = req.body.ref;
 	if(!ref)return res.send("Invalid request, no reference was specified.");
 	db.ref(ref).once("value").then(value => {
 	  	if (!value.exists())return res.send({exists: false});
 		const v = value.val();
-		res.send({json: JSON.stringify(v), exists: true});
+		res.send(JSON.stringify({json: v, exists: true}));
 	})
 	.catch(e => {
 	  console.log(e)
