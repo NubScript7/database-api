@@ -51,19 +51,16 @@ app.get("/test",(req,res) => {
 })
 
 app.post("/get", (req,res) => {
-	const ref = req.body.ref || "/";
-	console.log(ref)
+	const ref = req.body.ref;
 	if(!ref)return res.send("Invalid request, no reference was specified.");
-	console.log(ref)
 	db.ref(ref).once("value").then(value => {
-	  	if (!value.exists())return res.send("no value");
+	  	if (!value.exists())return res.send({exists: false});
 		const v = value.val();
-		//console.log(v)
-		res.send(JSON.stringify(v));
+		res.send({json: JSON.stringify(v), exists: true});
 	})
 	.catch(e => {
 	  console.log(e)
-	  res.send("error.")
+	  res.send({exists: false})
 	})
 })
 
