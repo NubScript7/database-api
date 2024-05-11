@@ -1,15 +1,13 @@
 require("dotenv").config()
 const express = require('express');
-const asyncRouter = require('express-promise-router')();
 const admin = require("firebase-admin");
-const cors = require("cors");
 const app = express();
 const PORT = process.env.PORT || 3000
 
-app.use(cors());
+
 app.use(express.json());
-app.use(express.urlencoded({extended: true}))
-app.use(asyncRouter);
+app.use(express.urlencoded({extended: true}));
+app.use(require("cors")());
 
 const partKey = {
   "type": process.env.type,
@@ -34,24 +32,39 @@ admin.initializeApp({
 const db = admin.database();
 
 app.post("/set", (req,res) => {
-	// const ref = req.body
-	console.log(req);
-	return
-	if (!ref || ref == "/")return res.send("Invalid request, no reference was specified.");
-	const value = req.body?.value || null;
+	const ref = req.body.ref;
+	const value = req.body.value;
+	console.log({ref,value})
+	if (!ref)return res.send("Invalid request, no reference was specified.");
 	
 	db.ref(ref).set(value);
 	res.send("VALUE SET");
 })
 
-asyncRouter.post("/get", async (req,res) => {
-	const ref = req.body?.ref || null;
-	if (!ref || ref == "/")return res.send("Invalid request, no reference was specified.");
-	
-	const value = await db.ref(ref).once("value");
-	if (value.exists())return res.send(undefined);
-	
-	res.send(value.val());
+app.post("/post", (req, res) => {
+  console.log(req.body)
+  res.json(req.body)
+})
+
+app.get("/test",(req,res) => {
+  res.send("hello world")
+})
+
+app.post("/get", (req,res) => {
+	const ref = req.body.ref || "/";
+	console.log(ref)
+	if(!ref)return res.send("Invalid request, no reference was specified.");
+	console.log(ref)
+	db.ref(ref).once("value").then(value => {
+	  	if (!value.exists())return res.send("no value");
+		const v = value.val();
+		//console.log(v)
+		res.send(JSON.stringify(v));
+	})
+	.catch(e => {
+	  console.log(e)
+	  res.send("error.")
+	})
 })
 
 app.listen(PORT,console.log('server live at port ',+PORT));
