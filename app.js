@@ -3,7 +3,11 @@ const express = require('express');
 const admin = require("firebase-admin");
 const app = express();
 const PORT = process.env.PORT || 3001
+const ROOT = process.env.DB_ROOT_VARIABLE || null
 
+if(ROOT === null) {
+	throw new Error("ERROR: DB ROOT FAILED TO LOAD")
+}
 
 app.use(express.json());
 app.use(express.urlencoded({extended: true}));
@@ -34,14 +38,14 @@ const db = admin.database();
 app.post("/set", (req,res) => {
 	const ref = req.body.ref;
 	const value = req.body.value;
-	console.log({ref,value})
+	//console.log({ref,value})
 	if (!ref)return res.send("Invalid request, no reference was specified.");
 	
-	db.ref(ref).set(value);
+	db.ref(ROOT).ref(ref).set(value);
 	res.send("VALUE SET");
 })
 
-app.post("/post", (req, res) => {
+app.post("/test-post", (req, res) => {
   console.log(req.body)
   res.json(req.body)
 })
@@ -51,17 +55,17 @@ app.get("/test",(req,res) => {
 })
 
 app.post("/get", (req,res) => {
-	console.log(req.body)
+	//console.log(req.body)
 	const ref = req.body.ref;
 	if(!ref)return res.send("Invalid request, no reference was specified.");
-	db.ref(ref).once("value").then(value => {
-	  	if (!value.exists())return res.send({exists: false});
+	db.ref(ROOT).ref(ref).once("value").then(value => {
+	  	if (!value.exists())return res.send({json: {}, exists: false});
 		const v = value.val();
 		res.send(JSON.stringify({json: v, exists: true}));
 	})
 	.catch(e => {
 	  console.log(e)
-	  res.send({exists: false})
+	  res.send({json: {}, exists: false})
 	})
 })
 
