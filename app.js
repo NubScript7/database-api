@@ -40,8 +40,7 @@ app.post("/set", (req,res) => {
 	const value = req.body.value;
 	//console.log({ref,value})
 	if (!ref)return res.send("Invalid request, no reference was specified.");
-	
-	db.ref(ROOT).ref(ref).set(value);
+	db.ref(ROOT + ref).set(value);
 	res.send("VALUE SET");
 })
 
@@ -58,7 +57,7 @@ app.post("/get", (req,res) => {
 	//console.log(req.body)
 	const ref = req.body.ref;
 	if(!ref)return res.send("Invalid request, no reference was specified.");
-	db.ref(ROOT).ref(ref).once("value").then(value => {
+	db.ref(ROOT + ref).once("value").then(value => {
 	  	if (!value.exists())return res.send({json: {}, exists: false});
 		const v = value.val();
 		res.send(JSON.stringify({json: v, exists: true}));
