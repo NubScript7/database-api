@@ -84,6 +84,10 @@ app.get("/origin", (req,res) => {
   res.send(parseOrigin(req))
 })
 
+app.get("/origin0", (req,res) => {
+  res.json([req.get("origin"), req.header("origin"), req.get("host"), req.headers["x-forwarded-for"], req.connection.remoteAddress])
+})
+
 app.post("/get", (req,res) => {
 	//console.log(req.body)
 	const origin = parseOrigin(req)
