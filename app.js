@@ -1,4 +1,8 @@
-//require("dotenv").config()
+"use strict"
+
+if (process.argv.some(e => e === "--dev-mode"))
+	require("dotenv").config()
+
 const express = require('express');
 const admin = require("firebase-admin");
 const app = express();
@@ -35,8 +39,27 @@ admin.initializeApp({
 
 const db = admin.database();
 
+let allowed_origins = [];
+
+db.ref("/db_allowed_origins").on("value", snapshot => {
+  if(!snapshot.exists())return;
+  
+  allowed_origins = snapshot.val()
+  console.log(allowed_origins)
+})
+
+function isOriginAllowed(origin) {
+  return allowed_origins.some(e => e === origin)
+}
+
+function parseOrigin(req) {
+  return (req.get("origin") || req.header("origin") || req.get("host") || req.headers["x-forwarded-for"] || req.connection.remoteAddress)
+}
+
 app.post("/set", (req,res) => {
-	const ref = req.body.ref;
+	if(!req.headers.origin || !isOriginAllowed(req.headers.origin) || !req.body.ref || "string" !== typeof req.body.ref || req.body.ref.length < 4)
+		return res.sendStatus(401)
+	const ref = req.body.ref[0] === "/" ? req.body.ref.slice(1) : req.body.ref
 	const value = req.body.value;
 	//console.log({ref,value})
 	if (!ref)return res.send("Invalid request, no reference was specified.");
@@ -49,13 +72,26 @@ app.post("/test-post", (req, res) => {
   res.json(req.body)
 })
 
+app.get("/origins", (req,res) => {
+  res.send(allowed_origins)
+})
+
 app.get("/test",(req,res) => {
   res.send("hello world")
 })
 
+app.get("/origin", (req,res) => {
+  res.send(parseOrigin(req))
+})
+
 app.post("/get", (req,res) => {
 	//console.log(req.body)
-	const ref = req.body.ref;
+	const origin = parseOrigin(req)
+	console.log(origin)
+	if(!origin || !isOriginAllowed(origin) || !req.body.ref || "string" !== typeof req.body.ref || req.body.ref.length < 4)
+		return res.sendStatus(401)
+	const ref = req.body.ref[0] === "/" ? req.body.ref.slice(1) : req.body.ref
+
 	if(!ref)return res.send("Invalid request, no reference was specified.");
 	db.ref(ROOT + ref).once("value").then(value => {
 	  	if (!value.exists())return res.send({json: {}, exists: false});
@@ -68,4 +104,8 @@ app.post("/get", (req,res) => {
 	})
 })
 
-app.listen(PORT,console.log('server live at port ',+PORT));
+app.all("*",(req,res) => {
+  res.sendStatus(401) //Unauthorized
+})
+
+app.listen(PORT,console.log('server live at port ',PORT));
