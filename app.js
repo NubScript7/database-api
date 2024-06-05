@@ -3,11 +3,13 @@
 if (process.argv.some(e => e === "--dev-mode"))
 	require("dotenv").config()
 
+const crypto = require("crypto");
 const express = require('express');
 const admin = require("firebase-admin");
 const app = express();
 const PORT = process.env.PORT || 3001
 const ROOT = process.env.DB_ROOT_VARIABLE || null
+const cors = require("cors");
 
 if(ROOT === null) {
 	throw new Error("ERROR: DB ROOT FAILED TO LOAD")
@@ -15,7 +17,7 @@ if(ROOT === null) {
 
 app.use(express.json());
 app.use(express.urlencoded({extended: true}));
-app.use(require("cors")());
+
 
 const partKey = {
   "type": process.env.type,
@@ -39,13 +41,19 @@ admin.initializeApp({
 
 const db = admin.database();
 
-let allowed_origins = [];
-
+let allowed_origins = []
 db.ref("/db_allowed_origins").on("value", snapshot => {
   if(!snapshot.exists())return;
   
   allowed_origins = snapshot.val()
   console.log(allowed_origins)
+})
+
+let public_keys = {}
+db.ref("/refKeys").on("value", snapshot => {
+  if(!snapshot.exists())return;
+  public_keys = snapshot.val()
+  console.log(public_keys)
 })
 
 function isOriginAllowed(origin) {
@@ -55,6 +63,29 @@ function isOriginAllowed(origin) {
 function parseOrigin(req) {
   return (req.get("origin") || req.header("origin") || req.get("host") || req.headers["x-forwarded-for"] || req.connection.remoteAddress)
 }
+
+function hashOrigin(req) {
+  return crypto.createHash("sha256")
+  .update(req.get("origin"))
+  .update(req.headers("origin"))
+  .update(req.get("host"))
+  .update(req.headers["x-forwarded-for"])
+  .update(req.connection.remoteAddress)
+  .digest("hex")
+}
+
+app.get("/refkeys/:key",(req,res) => {
+  if(!req.params.key)return res.sendStatus(400)
+
+  const ref = public_keys[req.params.key] || null
+  if(!ref)return res.sendStatus(404)
+
+  db.ref(ref).once("value").then(snapshot => {
+    if(!snapshot.exists())return res.sendStatus(404)
+
+    res.send(snapshot.val())
+  })
+})
 
 app.post("/set", (req,res) => {
 	if(!req.headers.origin || !isOriginAllowed(req.headers.origin) || !req.body.ref || "string" !== typeof req.body.ref || req.body.ref.length < 4)
@@ -72,10 +103,6 @@ app.post("/test-post", (req, res) => {
   res.json(req.body)
 })
 
-app.get("/origins", (req,res) => {
-  res.send(allowed_origins)
-})
-
 app.get("/test",(req,res) => {
   res.send("hello world")
 })
@@ -84,7 +111,7 @@ app.get("/origin", (req,res) => {
   res.send(parseOrigin(req))
 })
 
-app.get("/origin0", (req,res) => {
+app.get("/auth/origin0", (req,res) => {
   res.json([req.get("origin"), req.header("origin"), req.get("host"), req.headers["x-forwarded-for"], req.connection.remoteAddress])
 })
 
